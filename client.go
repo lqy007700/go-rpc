@@ -1,9 +1,10 @@
-package rpc
+package go_rpc
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"go-rpc/message"
 	"net"
 	"reflect"
 	"time"
@@ -46,10 +47,10 @@ func setFuncField(service Service, p Proxy) error {
 				if err != nil {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
 				}
-				req := &Request{
+				req := &message.Request{
 					ServiceName: service.Name(),
 					MethodName:  fieldType.Name,
-					Args:        marshal,
+					Data:        marshal,
 				}
 
 				// 发起调用
@@ -86,7 +87,7 @@ func NewClient(addr string) *Client {
 }
 
 // Invoke 发送请求到服务端
-func (c *Client) Invoke(ctx context.Context, req *Request) (*Response, error) {
+func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -97,7 +98,7 @@ func (c *Client) Invoke(ctx context.Context, req *Request) (*Response, error) {
 		return nil, err
 	}
 
-	return &Response{
+	return &message.Response{
 		Data: resp,
 	}, nil
 }

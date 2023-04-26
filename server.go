@@ -1,9 +1,10 @@
-package rpc
+package go_rpc
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
+	"go-rpc/message"
 	"net"
 	"reflect"
 )
@@ -53,7 +54,7 @@ func (s *Server) handlerConn(conn net.Conn) error {
 			return err
 		}
 
-		req := &Request{}
+		req := &message.Request{}
 		err = json.Unmarshal(resBs, req)
 		if err != nil {
 			return err
@@ -76,18 +77,18 @@ func (s *Server) handlerConn(conn net.Conn) error {
 }
 
 // Invoke 处理请求信息，还原调用信息，发起本地业务调用
-func (s *Server) Invoke(ctx context.Context, req *Request) (*Response, error) {
+func (s *Server) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
 	service, ok := s.services[req.ServiceName]
 	if !ok {
 		return nil, errors.New("服务不存在")
 	}
 
-	resp, err := service.invoke(ctx, req.MethodName, req.Args)
+	resp, err := service.invoke(ctx, req.MethodName, req.Data)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Response{
+	return &message.Response{
 		Data: resp,
 	}, nil
 }

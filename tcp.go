@@ -1,4 +1,4 @@
-package rpc
+package go_rpc
 
 import (
 	"encoding/binary"

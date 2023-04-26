@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"net"
@@ -113,13 +112,10 @@ func (c *Client) send(data []byte) ([]byte, error) {
 		_ = conn.Close()
 	}()
 
-	// 计算请求数据长度
-	reqLen := len(data)
-
-	// 请求数据 长度 + 内容
-	req := make([]byte, reqLen+numOfLengthBytes)
-	binary.BigEndian.PutUint64(req[:numOfLengthBytes], uint64(reqLen))
-	copy(req[numOfLengthBytes:], data)
+	req, err := EncodeMsg(data)
+	if err != nil {
+		return nil, err
+	}
 
 	// 发送请求
 	_, err = conn.Write(req)
@@ -127,17 +123,7 @@ func (c *Client) send(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// 响应内容长度
-	lenBs := make([]byte, numOfLengthBytes)
-	_, err = conn.Read(lenBs)
-	if err != nil {
-		return nil, err
-	}
-	length := binary.BigEndian.Uint64(lenBs)
-
-	// 响应内容
-	resp := make([]byte, length)
-	_, err = conn.Read(resp)
+	resp, err := ReadMsg(conn)
 	if err != nil {
 		return nil, err
 	}

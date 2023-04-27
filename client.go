@@ -52,6 +52,8 @@ func setFuncField(service Service, p Proxy) error {
 					MethodName:  fieldType.Name,
 					Data:        marshal,
 				}
+				req.CalculateHeadLen()
+				req.CalculateBodyLen()
 
 				// 发起调用
 				resp, err := p.Invoke(ctx, req)
@@ -59,12 +61,26 @@ func setFuncField(service Service, p Proxy) error {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
 				}
 
-				err = json.Unmarshal(resp.Data, out)
-				if err != nil {
-					return []reflect.Value{retVal, reflect.ValueOf(err)}
+				var serverErr error
+				if len(resp.Error) > 0 {
+					serverErr = errors.New(string(resp.Error))
 				}
 
-				return []reflect.Value{reflect.ValueOf(out), reflect.Zero(reflect.TypeOf(new(error)).Elem())}
+				if len(resp.Data) > 0 {
+					err = json.Unmarshal(resp.Data, out)
+					if err != nil {
+						return []reflect.Value{retVal, reflect.ValueOf(err)}
+					}
+				}
+
+				var retErrVal reflect.Value
+				if serverErr == nil {
+					retErrVal = reflect.Zero(reflect.TypeOf(new(error)).Elem())
+				} else {
+					retErrVal = reflect.ValueOf(serverErr)
+				}
+
+				return []reflect.Value{reflect.ValueOf(out), retErrVal}
 			}
 
 			fnVal := reflect.MakeFunc(fieldType.Type, fn)
@@ -88,19 +104,13 @@ func NewClient(addr string) *Client {
 
 // Invoke 发送请求到服务端
 func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
-	data, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
+	data := message.EncodeReq(req)
 
 	resp, err := c.send(data)
 	if err != nil {
 		return nil, err
 	}
-
-	return &message.Response{
-		Data: resp,
-	}, nil
+	return message.DecodeResp(resp), nil
 }
 
 func (c *Client) send(data []byte) ([]byte, error) {
@@ -113,20 +123,11 @@ func (c *Client) send(data []byte) ([]byte, error) {
 		_ = conn.Close()
 	}()
 
-	req, err := EncodeMsg(data)
-	if err != nil {
-		return nil, err
-	}
-
 	// 发送请求
-	_, err = conn.Write(req)
+	_, err = conn.Write(data)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := ReadMsg(conn)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return ReadMsg(conn)
 }

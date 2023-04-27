@@ -41,8 +41,8 @@ func TestEncodeDecodeData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.req.calculateHeadLen()
-			tt.req.calculateBodyLen()
+			tt.req.CalculateHeadLen()
+			tt.req.CalculateBodyLen()
 
 			req := EncodeReq(tt.req)
 			decodeReq := DecodeReq(req)

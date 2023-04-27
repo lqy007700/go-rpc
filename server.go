@@ -54,22 +54,15 @@ func (s *Server) handlerConn(conn net.Conn) error {
 			return err
 		}
 
-		req := &message.Request{}
-		err = json.Unmarshal(resBs, req)
-		if err != nil {
-			return err
-		}
-
+		req := message.DecodeReq(resBs)
 		respData, err := s.Invoke(context.Background(), req)
 		if err != nil {
-			return err
+			respData.Error = []byte(err.Error())
 		}
 
-		res, err := EncodeMsg(respData.Data)
-		if err != nil {
-			return err
-		}
-		_, err = conn.Write(res)
+		respData.CalculateHeadLen()
+		respData.CalculateBodyLen()
+		_, err = conn.Write(message.EncodeResp(respData))
 		if err != nil {
 			return err
 		}
@@ -83,14 +76,20 @@ func (s *Server) Invoke(ctx context.Context, req *message.Request) (*message.Res
 		return nil, errors.New("服务不存在")
 	}
 
-	resp, err := service.invoke(ctx, req.MethodName, req.Data)
+	respData, err := service.invoke(ctx, req.MethodName, req.Data)
 	if err != nil {
 		return nil, err
 	}
 
-	return &message.Response{
-		Data: resp,
-	}, nil
+	resp := &message.Response{
+		RequestId: req.RequestId,
+		Version:   req.Version,
+		Compress:  req.Compress,
+		Serialize: req.Serialize,
+		Data:      respData,
+		Error:     nil,
+	}
+	return resp, nil
 }
 
 type reflectionStub struct {
@@ -116,12 +115,18 @@ func (r *reflectionStub) invoke(ctx context.Context, methodName string, data []b
 	result := method.Call(in)
 
 	if result[1].Interface() != nil {
-		return nil, result[1].Interface().(error)
+		err = result[1].Interface().(error)
 	}
 
-	resp, err := json.Marshal(result[0].Interface())
-	if err != nil {
+	var res []byte
+	if result[0].IsNil() {
 		return nil, err
+	} else {
+		var er error
+		res, er = json.Marshal(result[0].Interface())
+		if er != nil {
+			return nil, er
+		}
 	}
-	return resp, nil
+	return res, nil
 }

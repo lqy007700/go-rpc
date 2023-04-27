@@ -113,7 +113,7 @@ func DecodeReq(data []byte) *Request {
 	return req
 }
 
-func (r *Request) calculateHeadLen() {
+func (r *Request) CalculateHeadLen() {
 	headLen := 15 + len(r.ServiceName) + 1 + len(r.MethodName) + 1
 	for k, v := range r.Mate {
 		headLen += len(k) + 1 + len(v) + 1
@@ -121,6 +121,6 @@ func (r *Request) calculateHeadLen() {
 	r.HeadLen = uint32(headLen)
 }
 
-func (r *Request) calculateBodyLen() {
+func (r *Request) CalculateBodyLen() {
 	r.BodyLen = uint32(len(r.Data))
 }

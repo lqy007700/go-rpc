@@ -2,9 +2,10 @@ package go_rpc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"go-rpc/message"
+	"go-rpc/serialize"
+	"go-rpc/serialize/json"
 	"net"
 	"reflect"
 	"time"
@@ -14,13 +15,14 @@ const (
 	numOfLengthBytes = 8
 )
 
-func InitClientProxy(addr string, service Service) error {
-	client := NewClient(addr)
-	return setFuncField(service, client)
+type ClientOpt func(c *Client)
+
+func (c *Client) InitService(service Service) error {
+	return setFuncField(service, c, c.serialize)
 }
 
 // 设置请求server的func
-func setFuncField(service Service, p Proxy) error {
+func setFuncField(service Service, p Proxy, s serialize.Serialize) error {
 	val := reflect.ValueOf(service)
 
 	typ := val.Type()
@@ -43,11 +45,12 @@ func setFuncField(service Service, p Proxy) error {
 
 				ctx := args[0].Interface().(context.Context)
 
-				marshal, err := json.Marshal(args[1].Interface())
+				marshal, err := s.Encode(args[1].Interface())
 				if err != nil {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
 				}
 				req := &message.Request{
+					Serialize:   s.Code(),
 					ServiceName: service.Name(),
 					MethodName:  fieldType.Name,
 					Data:        marshal,
@@ -67,7 +70,7 @@ func setFuncField(service Service, p Proxy) error {
 				}
 
 				if len(resp.Data) > 0 {
-					err = json.Unmarshal(resp.Data, out)
+					err = s.Decode(resp.Data, out)
 					if err != nil {
 						return []reflect.Value{retVal, reflect.ValueOf(err)}
 					}
@@ -91,15 +94,23 @@ func setFuncField(service Service, p Proxy) error {
 }
 
 type Client struct {
-	addr string
-	t    time.Duration
+	addr      string
+	t         time.Duration
+	serialize serialize.Serialize
 }
 
-func NewClient(addr string) *Client {
-	return &Client{
-		addr: addr,
-		t:    time.Second * 3,
+func NewClient(addr string, opts ...ClientOpt) *Client {
+	res := &Client{
+		addr:      addr,
+		t:         time.Second * 3,
+		serialize: &json.Serialize{},
 	}
+
+	for _, opt := range opts {
+		opt(res)
+	}
+
+	return res
 }
 
 // Invoke 发送请求到服务端

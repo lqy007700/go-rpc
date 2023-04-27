@@ -11,14 +11,16 @@ func TestInitClientProxy(t *testing.T) {
 	server := NewServer()
 	server.RegisterService(&UserServiceServer{})
 	go func() {
-		err := server.Start("tcp", ":8081")
+		err := server.Start("tcp", ":8082")
 		t.Log(err)
 	}()
 	time.Sleep(time.Second * 3)
 
+	c := NewClient(":8082")
 	usClient := &UserService{}
-	err := InitClientProxy(":8081", usClient)
+	err := c.InitService(usClient)
 	if err != nil {
+		t.Log(err)
 		return
 	}
 

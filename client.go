@@ -99,6 +99,12 @@ type Client struct {
 	serialize serialize.Serialize
 }
 
+func ClientWithSerialize(sl serialize.Serialize) ClientOpt {
+	return func(c *Client) {
+		c.serialize = sl
+	}
+}
+
 func NewClient(addr string, opts ...ClientOpt) *Client {
 	res := &Client{
 		addr:      addr,

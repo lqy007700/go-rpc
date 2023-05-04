@@ -42,7 +42,6 @@ func (u *UserServiceServer) GetById(ctx context.Context, req *GetByIdReq) (*GetB
 }
 
 func (u *UserServiceServer) GetByIdProto(ctx context.Context, req *gen.GetByIdReq) (*gen.GetByIdResp, error) {
-	log.Println("GetByIdProto--Local", req)
 	return &gen.GetByIdResp{
 		User: &gen.User{
 			Id:   1,

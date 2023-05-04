@@ -6,6 +6,7 @@ import (
 	"go-rpc/message"
 	"go-rpc/serialize"
 	"go-rpc/serialize/json"
+	"log"
 	"net"
 	"reflect"
 	"time"
@@ -49,11 +50,19 @@ func setFuncField(service Service, p Proxy, s serialize.Serialize) error {
 				if err != nil {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
 				}
+
+				var meta map[string]string
+				if isOneway(ctx) {
+					meta = map[string]string{
+						"oneway": "ok",
+					}
+				}
 				req := &message.Request{
 					Serialize:   s.Code(),
 					ServiceName: service.Name(),
 					MethodName:  fieldType.Name,
 					Data:        marshal,
+					Mate:        meta,
 				}
 				req.CalculateHeadLen()
 				req.CalculateBodyLen()
@@ -62,6 +71,11 @@ func setFuncField(service Service, p Proxy, s serialize.Serialize) error {
 				resp, err := p.Invoke(ctx, req)
 				if err != nil {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
+				}
+
+				// oneway
+				if resp == nil {
+					return []reflect.Value{retVal, reflect.Zero(reflect.TypeOf(new(error)).Elem())}
 				}
 
 				var serverErr error
@@ -123,14 +137,21 @@ func NewClient(addr string, opts ...ClientOpt) *Client {
 func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
 	data := message.EncodeReq(req)
 
-	resp, err := c.send(data)
+	conn, err := c.send(ctx, data)
+	if isOneway(ctx) {
+		log.Println("client oneway")
+		return nil, nil
+	}
+
+	resp, err := ReadMsg(conn)
+
 	if err != nil {
 		return nil, err
 	}
 	return message.DecodeResp(resp), nil
 }
 
-func (c *Client) send(data []byte) ([]byte, error) {
+func (c *Client) send(ctx context.Context, data []byte) (net.Conn, error) {
 	// 建立链接
 	conn, err := net.DialTimeout("tcp", c.addr, c.t)
 	if err != nil {
@@ -145,6 +166,5 @@ func (c *Client) send(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return ReadMsg(conn)
+	return conn, nil
 }

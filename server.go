@@ -6,6 +6,7 @@ import (
 	"go-rpc/message"
 	"go-rpc/serialize"
 	"go-rpc/serialize/json"
+	"log"
 	"net"
 	"reflect"
 )
@@ -65,7 +66,17 @@ func (s *Server) handlerConn(conn net.Conn) error {
 		}
 
 		req := message.DecodeReq(resBs)
+
+		oneway, ok := req.Mate["oneway"]
+		if ok && oneway == "ok" {
+			go func() {
+				_, _ = s.Invoke(context.Background(), req)
+			}()
+			log.Println("server oneway")
+			return nil
+		}
 		respData, err := s.Invoke(context.Background(), req)
+
 		if err != nil {
 			respData.Error = []byte(err.Error())
 		}

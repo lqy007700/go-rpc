@@ -53,11 +53,13 @@ func TestInitClientProto(t *testing.T) {
 		return
 	}
 
-	resp, err := usClient.GetByIdProto(context.Background(), &gen.GetByIdReq{
+	resp, err := usClient.GetByIdProto(CtxtWithOneway(context.Background()), &gen.GetByIdReq{
 		Id: 123,
 	})
 	log.Println(resp)
 	if err != nil {
-		return
+		t.Log(err)
 	}
+
+	time.Sleep(time.Second * 2)
 }

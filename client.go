@@ -139,9 +139,9 @@ func NewClient(addr string, opts ...ClientOpt) *Client {
 // Invoke 发送请求到服务端
 func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
 	// 检测超时
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
+	//if ctx.Err() != nil {
+	//	return nil, ctx.Err()
+	//}
 
 	var (
 		resp *message.Response
@@ -173,6 +173,7 @@ func (c *Client) doInvoke(ctx context.Context, req *message.Request) (*message.R
 	}
 	resp, err := ReadMsg(conn)
 	if err != nil {
+		log.Println(9, err.Error())
 		return nil, err
 	}
 	return message.DecodeResp(resp), nil
@@ -184,13 +185,11 @@ func (c *Client) send(ctx context.Context, data []byte) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = conn.Close()
-	}()
 
 	// 发送请求
 	_, err = conn.Write(data)
 	if err != nil {
+		log.Println(7, err.Error())
 		return nil, err
 	}
 	return conn, nil

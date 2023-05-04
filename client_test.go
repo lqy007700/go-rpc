@@ -40,12 +40,12 @@ func TestInitClientProto(t *testing.T) {
 	server.RegisterService(&UserServiceServer{})
 	server.RegisterSerialize(&proto.Serialize{})
 	go func() {
-		err := server.Start("tcp", ":8082")
+		err := server.Start("tcp", ":8083")
 		t.Log(err)
 	}()
 	time.Sleep(time.Second * 3)
 
-	c := NewClient(":8082", ClientWithSerialize(&proto.Serialize{}))
+	c := NewClient(":8083", ClientWithSerialize(&proto.Serialize{}))
 	usClient := &UserService{}
 	err := c.InitService(usClient)
 	if err != nil {
@@ -53,9 +53,10 @@ func TestInitClientProto(t *testing.T) {
 		return
 	}
 
-	resp, err := usClient.GetByIdProto(CtxtWithOneway(context.Background()), &gen.GetByIdReq{
+	resp, err := usClient.GetByIdProto(context.Background(), &gen.GetByIdReq{
 		Id: 123,
 	})
+
 	log.Println(resp)
 	if err != nil {
 		t.Log(err)

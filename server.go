@@ -48,12 +48,14 @@ func (s *Server) Start(network, addr string) error {
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
+			log.Println(1, err.Error())
 			return err
 		}
 
 		go func() {
-			err := s.handlerConn(conn)
+			err = s.handlerConn(conn)
 			if err != nil {
+				log.Println(2, err.Error())
 				_ = conn.Close()
 			}
 		}()
@@ -64,11 +66,11 @@ func (s *Server) handlerConn(conn net.Conn) error {
 	for {
 		resBs, err := ReadMsg(conn)
 		if err != nil {
+			log.Println(4, err.Error())
 			return err
 		}
 
 		req := message.DecodeReq(resBs)
-
 		ctx := context.Background()
 		cancel := func() {}
 		if deadlineStr, ok := req.Mate["deadline"]; ok {
@@ -79,6 +81,9 @@ func (s *Server) handlerConn(conn net.Conn) error {
 
 		respData, err := s.Invoke(ctx, req)
 		cancel()
+		if err != nil {
+			respData.Error = []byte(err.Error())
+		}
 
 		// oneway
 		oneway, ok := req.Mate["oneway"]
@@ -87,14 +92,13 @@ func (s *Server) handlerConn(conn net.Conn) error {
 			continue
 		}
 
-		if err != nil {
-			respData.Error = []byte(err.Error())
-		}
-
 		respData.CalculateHeadLen()
 		respData.CalculateBodyLen()
+
 		_, err = conn.Write(message.EncodeResp(respData))
+
 		if err != nil {
+			log.Println(3, err.Error())
 			return err
 		}
 	}
@@ -109,6 +113,7 @@ func (s *Server) Invoke(ctx context.Context, req *message.Request) (*message.Res
 
 	respData, err := service.invoke(ctx, req)
 	if err != nil {
+		log.Println(5, err.Error())
 		return nil, err
 	}
 

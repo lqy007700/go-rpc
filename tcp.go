@@ -2,6 +2,7 @@ package go_rpc
 
 import (
 	"encoding/binary"
+	"log"
 	"net"
 )
 
@@ -10,6 +11,7 @@ func ReadMsg(conn net.Conn) ([]byte, error) {
 	lenBs := make([]byte, numOfLengthBytes)
 	_, err := conn.Read(lenBs)
 	if err != nil {
+		log.Println(6, err.Error())
 		return nil, err
 	}
 	headLen := binary.BigEndian.Uint32(lenBs[:4])

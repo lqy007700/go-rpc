@@ -135,6 +135,32 @@ func NewClient(addr string, opts ...ClientOpt) *Client {
 
 // Invoke 发送请求到服务端
 func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Response, error) {
+	// 检测超时
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	var (
+		resp *message.Response
+		err  error
+		ch   = make(chan struct{})
+	)
+
+	go func() {
+		resp, err = c.doInvoke(ctx, req)
+		ch <- struct{}{}
+		close(ch)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return resp, ctx.Err()
+	case <-ch:
+		return resp, err
+	}
+}
+
+func (c *Client) doInvoke(ctx context.Context, req *message.Request) (*message.Response, error) {
 	data := message.EncodeReq(req)
 
 	conn, err := c.send(ctx, data)
@@ -142,9 +168,7 @@ func (c *Client) Invoke(ctx context.Context, req *message.Request) (*message.Res
 		log.Println("client oneway")
 		return nil, nil
 	}
-
 	resp, err := ReadMsg(conn)
-
 	if err != nil {
 		return nil, err
 	}

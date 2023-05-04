@@ -9,6 +9,8 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"strconv"
+	"time"
 )
 
 type Server struct {
@@ -67,15 +69,23 @@ func (s *Server) handlerConn(conn net.Conn) error {
 
 		req := message.DecodeReq(resBs)
 
+		ctx := context.Background()
+		cancel := func() {}
+		if deadlineStr, ok := req.Mate["deadline"]; ok {
+			if deadline, err := strconv.ParseInt(deadlineStr, 10, 64); err == nil {
+				ctx, cancel = context.WithDeadline(ctx, time.UnixMilli(deadline))
+			}
+		}
+
+		respData, err := s.Invoke(ctx, req)
+		cancel()
+
+		// oneway
 		oneway, ok := req.Mate["oneway"]
 		if ok && oneway == "ok" {
-			go func() {
-				_, _ = s.Invoke(context.Background(), req)
-			}()
 			log.Println("server oneway")
-			return nil
+			continue
 		}
-		respData, err := s.Invoke(context.Background(), req)
 
 		if err != nil {
 			respData.Error = []byte(err.Error())

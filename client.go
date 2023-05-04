@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"strconv"
 	"time"
 )
 
@@ -51,11 +52,13 @@ func setFuncField(service Service, p Proxy, s serialize.Serialize) error {
 					return []reflect.Value{retVal, reflect.ValueOf(err)}
 				}
 
-				var meta map[string]string
+				meta := make(map[string]string, 2)
+				if deadline, ok := ctx.Deadline(); ok {
+					meta["deadline"] = strconv.FormatInt(deadline.UnixMilli(), 10)
+				}
+
 				if isOneway(ctx) {
-					meta = map[string]string{
-						"oneway": "ok",
-					}
+					meta["oneway"] = "ok"
 				}
 				req := &message.Request{
 					Serialize:   s.Code(),
